@@ -2,20 +2,18 @@ import os
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-# Параметры подключения и путей
-pg_host = os.getenv("PGHOST", "db")  # имя сервиса БД из docker-compose
+pg_host = os.getenv("PGHOST", "db")
 pg_port = os.getenv("PGPORT", "5432")
 pg_db = os.getenv("PGDATABASE", "appdb")
 pg_user = os.getenv("PGUSER", "appuser")
 pg_pass = os.getenv("PGPASSWORD", "apppass")
-excel_path = os.getenv("EXCEL_PATH", "/data/postgres/input.xlsx")
-table_name = os.getenv("TABLE_NAME", "public.tariffs")  # целевая таблица
+excel_path = os.getenv("EXCEL_PATH", "/app/input.xlsx")
+table_name = os.getenv("TABLE_NAME", "public.tariffs")
 
 conn_str = f"postgresql+psycopg2://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}"
 engine = create_engine(conn_str, pool_pre_ping=True)
 
 def clean_col(s: str) -> str:
-    # Удаляем неразрывные и узкие пробелы, тримим, приводим множественные пробелы к одному
     return (
         str(s)
         .replace('\u00A0', ' ')
@@ -25,11 +23,9 @@ def clean_col(s: str) -> str:
     )
 
 def norm_key(s: str) -> str:
-    # Нормализуем ключ для сопоставления: нижний регистр + схлопывание пробелов
     return ' '.join(clean_col(s).lower().split())
 
 def parse_percent(val):
-    # Преобразование "5%" -> 5.0, "0%" -> 0.0; запятая как десятичный разделитель поддерживается
     if pd.isna(val):
         return None
     s = str(val).strip().replace(',', '.')
@@ -41,14 +37,11 @@ def parse_percent(val):
         return None
 
 def main():
-    # Читаем Excel; при необходимости можно указать sheet_name и header
-    df = pd.read_excel(excel_path, dtype=str)  # openpyxl по умолчанию для .xlsx
-    print("Excel columns read:", list(df.columns))  # диагностика заголовков
+    df = pd.read_excel(excel_path, dtype=str)
+    print("Excel columns read:", list(df.columns))
 
-    # Очистим и нормализуем имена столбцов
     df.columns = [clean_col(c) for c in df.columns]
 
-    # Мягкое сопоставление русских заголовков с целевыми именами
     targets = {
         norm_key('Код'): 'code',
         norm_key('Наименование'): 'name',
@@ -68,17 +61,15 @@ def main():
     if missing:
         raise KeyError(
             f"Отсутствуют ожидаемые колонки после нормализации: {missing}. "
-            f"Найдено: {list(df.columns)}. Проверьте строку заголовков, пробелы и объединения ячеек."
+            f"Найдено: {list(df.columns)}."
         )
 
-    # Приведение типов/значений
     df = df[required]
     df['code'] = df['code'].astype(str).str.strip()
     df['name'] = df['name'].astype(str).str.strip()
     df['details'] = df['details'].astype(str).str.strip()
     df['tariff_percent'] = df['tariff_percent'].apply(parse_percent)
 
-    # Создаем целевую таблицу, если не существует
     ddl = f"""
     CREATE TABLE IF NOT EXISTS {table_name}(
         code            VARCHAR(32) PRIMARY KEY,
@@ -92,10 +83,7 @@ def main():
     stg_name = "tariffs_stg"
 
     with engine.begin() as conn:
-        # Гарантируем наличие целевой таблицы
         conn.execute(text(ddl))
-
-        # Подготовим обычную стейдж-таблицу в public
         conn.execute(text(f"DROP TABLE IF EXISTS {stg_schema}.{stg_name};"))
         conn.execute(text(f"""
             CREATE TABLE {stg_schema}.{stg_name}(
@@ -106,10 +94,8 @@ def main():
             );
         """))
 
-        # Загрузка в stage через pandas.to_sql с явной схемой
         df.to_sql(name=stg_name, schema=stg_schema, con=conn, if_exists='append', index=False)
 
-        # Upsert в целевую таблицу
         conn.execute(text(f"""
             INSERT INTO {table_name} (code, name, tariff_percent, details)
             SELECT code, name, tariff_percent, details FROM {stg_schema}.{stg_name}
@@ -119,7 +105,6 @@ def main():
                 details = EXCLUDED.details;
         """))
 
-        # Очистка stage
         conn.execute(text(f"DROP TABLE IF EXISTS {stg_schema}.{stg_name};"))
 
 if __name__ == "__main__":
