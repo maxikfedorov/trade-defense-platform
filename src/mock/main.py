@@ -231,11 +231,14 @@ async def full_pipeline(request: FullPipelineRequest):
     """
     try:
         # Шаг 1: Анализ
+        print('Начали анализ')
         algorithm_result = mock_main_algorithm(request.tnved_code, request.product_name)
-        
+        print('Закончили анализ')
         # Шаг 2: Генерация
+        print('Начали работу с результатами')
         processor = MockLocalLLMRAGProcessor()
         generation_result = processor.process(algorithm_result, request.user_prompt)
+        print('Закончили работу с результатами')
         
         # Объединяем результаты
         full_result = {

@@ -7,7 +7,7 @@ import java.math.BigDecimal
 @Table(name = "parfume", schema = "public")
 class WideParfumeEntity(
     @Id
-    @Column(name = "country", length = 128)
+    @Column(name = "country", columnDefinition = "text")
     var country: String = "",
 
     @Column(name = "value_usd_mln_2022", precision = 18, scale = 3)
