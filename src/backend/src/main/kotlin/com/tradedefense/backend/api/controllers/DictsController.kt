@@ -5,7 +5,9 @@ import com.tradedefense.backend.api.dto.dicts.TariffPageDto
 import com.tradedefense.backend.infra.db.pg.entities.TariffEntity
 import com.tradedefense.backend.infra.db.pg.repositories.TariffRepository
 import org.springframework.data.domain.PageRequest
+import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.server.ResponseStatusException
 
 @RestController
 @RequestMapping("/api/v1/tariffs")
@@ -15,8 +17,10 @@ class DictsController(
 
     // Получить запись по коду
     @GetMapping("/{code}")
-    fun getByCode(@PathVariable code: String): TariffDto? =
-        tariffRepo.findById(code.trim()).map { it.toDto() }.orElse(null)
+    fun getByCode(@PathVariable code: String): TariffDto =
+        tariffRepo.findById(code.trim())
+            .map { it.toDto() }
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Нет данных") }
 
     // Поиск по префиксу кода (пагинация)
     @GetMapping
