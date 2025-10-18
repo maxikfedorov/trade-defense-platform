@@ -1,14 +1,49 @@
-services:
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: qdrant
-    restart: unless-stopped
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
+version: "3.8"
 
-volumes:
-  qdrant_data:
-    driver: local
+services:
+  db:
+    image: postgres:16
+    container_name: pg
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+      TZ: Europe/Moscow
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: adminpass
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  etl:
+    build:
+      context: .
+      dockerfile: data/postgres/etl/Dockerfile
+    container_name: excel_to_pg
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: appdb
+      PGUSER: appuser
+      PGPASSWORD: apppass
+      EXCEL_PATH: /app/input.xlsx
+      TABLE_NAME: public.tariffs
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-u", "/app/import_excel.py"]
