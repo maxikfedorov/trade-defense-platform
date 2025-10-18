@@ -1,0 +1,17 @@
+# Этап выполнения (single-stage, предполагаем локальную сборку jar)
+FROM eclipse-temurin:21-jre-jammy
+
+# Рабочая директория
+WORKDIR /app
+
+# Копируем собранный jar
+COPY target/backend-0.0.1-SNAPSHOT.jar app.jar
+
+# Опционально: укажем порт
+EXPOSE 8080
+
+# JVM опции: контейнер-aware, ограничение heap и GC настройки по умолчанию
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
+
+# Аккуратный старт
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
