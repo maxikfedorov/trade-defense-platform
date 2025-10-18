@@ -24,8 +24,14 @@ class DataController(
         @RequestParam(required = false) sortBy: String?,     // usd2024|tons2024|country
         @RequestParam(defaultValue = "desc") order: String = "desc",
         @RequestParam(required = false) year: Int?           // если указан, вернём только нужные столбцы
-    ): List<Map<String, Any?>> =
-        mapWideRows(parfumeRepo.findAllFiltered(q), sortBy, order, year)
+    ): List<Map<String, Any?>> {
+        val rows = if (q.isNullOrBlank()) parfumeRepo.findAllPlain()
+        else parfumeRepo.findByPattern("%${q.trim()}%")
+        return mapWideRows(rows, sortBy, order, year)
+    }
+
+    @GetMapping("/parfumes")
+    fun parfumes() : MutableList<WideParfumeEntity> = parfumeRepo.findAll()
 
     // -------- Elevators ----------
     @GetMapping("/elevators")
@@ -34,8 +40,11 @@ class DataController(
         @RequestParam(required = false) sortBy: String?,
         @RequestParam(defaultValue = "desc") order: String = "desc",
         @RequestParam(required = false) year: Int?
-    ): List<Map<String, Any?>> =
-        mapWideRows(elevatorsRepo.findAllFiltered(q), sortBy, order, year)
+    ): List<Map<String, Any?>> {
+        val rows = if (q.isNullOrBlank()) elevatorsRepo.findAllPlain()
+        else elevatorsRepo.findByPattern("%${q.trim()}%")
+        return mapWideRows(rows, sortBy, order, year)
+    }
 
     // -------- Bankomats ----------
     @GetMapping("/bankomats")
@@ -44,8 +53,11 @@ class DataController(
         @RequestParam(required = false) sortBy: String?,
         @RequestParam(defaultValue = "desc") order: String = "desc",
         @RequestParam(required = false) year: Int?
-    ): List<Map<String, Any?>> =
-        mapWideRows(bankomatsRepo.findAllFiltered(q), sortBy, order, year)
+    ): List<Map<String, Any?>> {
+        val rows = if (q.isNullOrBlank()) bankomatsRepo.findAllPlain()
+        else bankomatsRepo.findByPattern("%${q.trim()}%")
+        return mapWideRows(rows, sortBy, order, year)
+    }
 
     // ---------- helpers ----------
     private fun mapWideRows(
