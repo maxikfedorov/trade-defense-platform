@@ -243,7 +243,7 @@ export default function AboutModal({ isOpen, onClose }) {
                 <Title level={4} style={{ margin: 0, marginBottom: 8, fontSize: 16 }}>
                   Авторы
                 </Title>
-                <Text style={{ fontSize: 13 }}>Команда «Открой#Моспром» 2025</Text>
+                <Text style={{ fontSize: 13 }}>Команда «НейроСанитары» 2025</Text>
               </div>
             </Space>
           </div>

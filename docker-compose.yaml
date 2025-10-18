@@ -86,8 +86,6 @@ volumes:
   postgres_data:
   qdrant_data:
 
-
-
   # backend:
   #   build:
   #     context: ./src/backend
