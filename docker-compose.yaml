@@ -30,24 +30,77 @@ services:
       db:
         condition: service_healthy
 
-  etl:
+  etl_tariffs:
     build:
       context: .
-      dockerfile: data/postgres/etl/Dockerfile
-    container_name: excel_to_pg
+      dockerfile: data/postgres/etl/Dockerfile.tariffs
+    container_name: excel_to_pg_tariffs
     environment:
       PGHOST: db
       PGPORT: "5432"
       PGDATABASE: appdb
       PGUSER: appuser
       PGPASSWORD: apppass
-      EXCEL_PATH: /app/input.xlsx
+      EXCEL_PATH: /app/input.xlsx       # файл будет скопирован в образ
       TABLE_NAME: public.tariffs
     depends_on:
       db:
         condition: service_healthy
     command: ["python", "-u", "/app/import_excel.py"]
 
+  etl_elevators:
+    build:
+      context: .
+      dockerfile: data/postgres/etl/Dockerfile.elevators
+    container_name: excel_to_pg_elevators
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: appdb
+      PGUSER: appuser
+      PGPASSWORD: apppass
+      EXCEL_PATH: /app/elevators.xlsx   # файл будет скопирован в образ
+      TABLE_NAME: public.elevators
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-u", "/app/import_elevators.py"]
+
+  etl_parfume:
+    build:
+      context: .
+      dockerfile: data/postgres/etl/Dockerfile.parfume
+    container_name: excel_to_pg_parfume
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: appdb
+      PGUSER: appuser
+      PGPASSWORD: apppass
+      EXCEL_PATH: /app/parfume.xlsx   # файл будет скопирован в образ
+      TABLE_NAME: public.parfume
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-u", "/app/import_parfume.py"]
+
+  etl_bankomats:
+    build:
+      context: .
+      dockerfile: data/postgres/etl/Dockerfile.bankomats
+    container_name: excel_to_pg_bankomats
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: appdb
+      PGUSER: appuser
+      PGPASSWORD: apppass
+      EXCEL_PATH: /app/bankomats.xlsx   # файл будет скопирован в образ
+      TABLE_NAME: public.bankomats
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-u", "/app/import_bankomats.py"]
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant
