@@ -1,6 +1,6 @@
-# src\app\main.py
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware  # <- ДОБАВИТЬ
 from app.routers import analysis
 from app.core.config import settings
 import logging
@@ -21,6 +21,19 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server
+        "http://localhost:5174",  # На случай другого порта
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",  # Если вдруг порт
+    ],
+    allow_credentials=True,
+    allow_methods=["*"], 
+    allow_headers=["*"], 
+)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

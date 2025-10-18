@@ -6,10 +6,12 @@ from pathlib import Path
 from sqlalchemy import create_engine
 from app.core.config import settings
 
+
 def load_config():
     config_path = Path(__file__).parent.parent.parent.parent / 'config' / 'config.yaml'
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
+
 
 def load_data():
     engine = create_engine(settings.DATABASE_URL)
@@ -44,9 +46,11 @@ def load_data():
     data['config'] = load_config()
     return data
 
+
 def normalize_tnved_code(tnved_input):
     cleaned = str(tnved_input).replace(' ', '').replace('-', '')
     return cleaned
+
 
 def get_tnved_info(tnved_code, data):
     tnved_info = {}
@@ -63,6 +67,7 @@ def get_tnved_info(tnved_code, data):
             break
     return tnved_info
 
+
 def map_tnved_to_product(tnved_input, config):
     normalized = normalize_tnved_code(tnved_input)
     if normalized in config['tnved_product_mapping']:
@@ -72,6 +77,7 @@ def map_tnved_to_product(tnved_input, config):
         if prefix in config['tnved_product_mapping']:
             return config['tnved_product_mapping'][prefix]
     return None
+
 
 def collect_product_data(tnved_input, product_name, data):
     result = {}
@@ -94,6 +100,7 @@ def collect_product_data(tnved_input, product_name, data):
     result['product_name'] = product_name
     return result
 
+
 def parse_production_consumption(value_str):
     years = {}
     lines = value_str.strip().split('\n')
@@ -103,6 +110,7 @@ def parse_production_consumption(value_str):
         value = float(parts[1].replace(' млн $', ''))
         years[year] = value
     return years
+
 
 def classify_countries(countries_data):
     friendly = {}
@@ -115,6 +123,7 @@ def classify_countries(countries_data):
         else:
             unfriendly[country_name] = True
     return friendly, unfriendly
+
 
 def calculate_metrics(import_data_value, import_data_weight, friendly_countries, unfriendly_countries):
     metrics = {}
@@ -154,6 +163,83 @@ def calculate_metrics(import_data_value, import_data_weight, friendly_countries,
                 other_values.append(row[last_year] / weight)
     metrics['other_avg_price'] = np.mean(other_values) if other_values else 0
     return metrics
+
+
+# НОВАЯ ФУНКЦИЯ: Получение географической структуры импорта
+def get_import_geography(df_value, unfriendly_countries):
+    """
+    Формирует географическую структуру импорта с долями по странам
+    """
+    df_countries = df_value[df_value['Список стран-продавцов в Россию'] != 'World']
+    years = [col for col in df_value.columns if 'млн $' in col]
+    last_year = years[-1]
+    world_value = df_value[df_value['Список стран-продавцов в Россию'] == 'World'][last_year].values[0]
+    
+    geography = []
+    for _, row in df_countries.iterrows():
+        country = row['Список стран-продавцов в Россию']
+        value = float(row[last_year])  # Преобразуем np.float64 в float
+        geography.append({
+            'country': country,
+            'value': round(value, 2),
+            'share_percent': round(float(value / world_value * 100), 2) if world_value > 0 else 0,
+            'is_unfriendly': country in unfriendly_countries
+        })
+    
+    return sorted(geography, key=lambda x: x['value'], reverse=True)
+
+
+# НОВАЯ ФУНКЦИЯ: Получение средних цен топ-5 стран
+def get_top5_prices(df_value, df_weight):
+    """
+    Рассчитывает среднюю контрактную цену для топ-5 стран-поставщиков
+    """
+    years_value = [col for col in df_value.columns if 'млн $' in col]
+    years_weight = [col for col in df_weight.columns if 'тонны' in col]
+    last_year_value = years_value[-1]
+    last_year_weight = years_weight[-1]
+    
+    df_countries = df_value[df_value['Список стран-продавцов в Россию'] != 'World'].head(5)
+    
+    prices = []
+    for _, row in df_countries.iterrows():
+        country = row['Список стран-продавцов в Россию']
+        value = float(row[last_year_value])
+        weight_row = df_weight[df_weight['Список стран-продавцов в Россию'] == country]
+        weight = float(weight_row[last_year_weight].values[0]) if not weight_row.empty else 1
+        
+        prices.append({
+            'country': country,
+            'avg_price_usd_per_ton': round(value / weight, 2) if weight > 0 else 0,
+            'total_value_mln_usd': round(value, 2),
+            'total_weight_tons': round(weight, 2) if not weight_row.empty else 0
+        })
+    
+    return prices
+
+
+# НОВАЯ ФУНКЦИЯ: Получение динамики импорта по годам
+def get_import_dynamics(df_value, df_weight):
+    """
+    Формирует временные ряды импорта (объем и стоимость) за последние 3 года
+    """
+    years_value = [col for col in df_value.columns if 'млн $' in col]
+    years_weight = [col for col in df_weight.columns if 'тонны' in col]
+    
+    world_data = df_value[df_value['Список стран-продавцов в Россию'] == 'World'].iloc[0]
+    world_weight = df_weight[df_weight['Список стран-продавцов в Россию'] == 'World'].iloc[0]
+    
+    dynamics = []
+    for i, (year_val, year_weight) in enumerate(zip(years_value, years_weight)):
+        year = int(year_val.split(',')[0])
+        dynamics.append({
+            'year': year,
+            'value_mln_usd': round(float(world_data[year_val]), 2),
+            'weight_tons': round(float(world_weight[year_weight]), 2)
+        })
+    
+    return dynamics
+
 
 def analyze_tariff_measures(product_data, metrics):
     tariff_rate = product_data.get('Ставка таможенной пошлины', 0)
@@ -195,6 +281,7 @@ def analyze_tariff_measures(product_data, metrics):
                 reasoning.append('Тариф на максимуме, производство >= потребления')
     return measures, reasoning
 
+
 def analyze_nontariff_measures(product_data):
     production = parse_production_consumption(product_data.get('Объем производства', '2024 - 0 млн $'))
     consumption = parse_production_consumption(product_data.get('Объем потребления', '2024 - 0 млн $'))
@@ -216,10 +303,15 @@ def analyze_nontariff_measures(product_data):
             reasoning.append('Возможно применение мер госзакупок')
     return measures, reasoning
 
+
 def main_algorithm(tnved_input, product_name=None):
     data = load_data()
     product_data = collect_product_data(tnved_input, product_name, data)
     friendly, unfriendly = classify_countries(product_data['countries'])
+    
+    df_value = pd.DataFrame(product_data['import_value'])
+    df_weight = pd.DataFrame(product_data['import_weight'])
+    
     metrics = calculate_metrics(
         product_data['import_value'],
         product_data['import_weight'],
@@ -228,6 +320,15 @@ def main_algorithm(tnved_input, product_name=None):
     )
     tariff_measures, tariff_reasoning = analyze_tariff_measures(product_data, metrics)
     nontariff_measures, nontariff_reasoning = analyze_nontariff_measures(product_data)
+    
+    production_data = parse_production_consumption(
+        product_data.get('Объем производства', '2024 - 0 млн $')
+    )
+    consumption_data = parse_production_consumption(
+        product_data.get('Объем потребления', '2024 - 0 млн $')
+    )
+    
+    # СТРУКТУРА СОВМЕСТИМАЯ С schemas.py
     result = {
         'metadata': {
             'tnved_code': product_data['tnved_info'].get('tnved_code'),
@@ -237,15 +338,15 @@ def main_algorithm(tnved_input, product_name=None):
             'current_tariff': product_data['tnved_info'].get('tariff')
         },
         'product_info': {
-            'tariff_rate': product_data.get('Ставка таможенной пошлины', 0),
-            'wto_rate': product_data.get('Ставка таможенной пошлины в рамках обязательства России в ВТО', 0),
+            'tariff_rate': float(product_data.get('Ставка таможенной пошлины', 0)),
+            'wto_rate': float(product_data.get('Ставка таможенной пошлины в рамках обязательства России в ВТО', 0)),
             'has_certification': product_data.get('Присутствие в технических регламентах (сертификация)', 'нет')
         },
         'metrics': {
-            'unfriendly_share': round(metrics['unfriendly_share'], 3),
-            'unfriendly_growth': round(metrics['unfriendly_growth'], 2),
-            'top1_avg_price': round(metrics['top1_avg_price'], 2),
-            'other_avg_price': round(metrics['other_avg_price'], 2)
+            'unfriendly_share': round(float(metrics['unfriendly_share']), 3),
+            'unfriendly_growth': round(float(metrics['unfriendly_growth']), 2),
+            'top1_avg_price': round(float(metrics['top1_avg_price']), 2),
+            'other_avg_price': round(float(metrics['other_avg_price']), 2)
         },
         'tariff_measures': {
             'measures': tariff_measures,
@@ -254,6 +355,21 @@ def main_algorithm(tnved_input, product_name=None):
         'nontariff_measures': {
             'measures': nontariff_measures,
             'reasoning': nontariff_reasoning
+        },
+        # ДОПОЛНИТЕЛЬНЫЕ ДАННЫЕ ДЛЯ ДАШБОРДА
+        'dashboard_data': {
+            'import_dynamics': get_import_dynamics(df_value, df_weight),
+            'production_dynamics': [
+                {'year': year, 'value_mln_usd': value} 
+                for year, value in sorted(production_data.items())
+            ],
+            'consumption_dynamics': [
+                {'year': year, 'value_mln_usd': value} 
+                for year, value in sorted(consumption_data.items())
+            ],
+            'import_geography': get_import_geography(df_value, unfriendly),
+            'top5_contract_prices': get_top5_prices(df_value, df_weight)
         }
     }
+    
     return result
