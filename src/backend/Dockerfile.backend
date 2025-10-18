@@ -5,7 +5,7 @@ FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
 # Копируем собранный jar
-COPY target/backend-0.0.1-SNAPSHOT.jar app.jar
+COPY target/backend-0.0.2.jar app.jar
 
 # Опционально: укажем порт
 EXPOSE 8080

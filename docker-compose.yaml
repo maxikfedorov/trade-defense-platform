@@ -117,6 +117,7 @@ services:
     image: trade-defense-backend:0.1.0
     container_name: trade-defense-backend
     environment:
+      - AI_BASEURL=http://host.docker.internal:8000
       - SERVER_PORT=8080
     ports:
       - "8080:8080"
