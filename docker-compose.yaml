@@ -1,5 +1,9 @@
 version: "3.8"
 
+networks:
+  app-network:
+    driver: bridge
+
 services:
   db:
     image: postgres:16
@@ -11,12 +15,15 @@ services:
       TZ: Europe/Moscow
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 10s
+      retries: 5
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -27,21 +34,70 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
-  backend:
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  fastapi:
     build:
-      context: ./src/backend
-      dockerfile: Dockerfile.backend
-    image: trade-defense-backend:0.1.0
-    container_name: trade-defense-backend
-    environment:
-      - AI_BASEURL=http://host.docker.internal:8000
-      - SERVER_PORT=8080
+      context: ./src/app
+      dockerfile: Dockerfile
+    container_name: fastapi-app
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://appuser:apppass@db:5432/appdb
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+    volumes:
+      - ./src/app:/code/app
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    container_name: frontend-app
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+    depends_on:
+      - fastapi
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
+  postgres_data:
   qdrant_data:
-    driver: local
-  mongo_data:
-    driver: local
+
+
+
+  # backend:
+  #   build:
+  #     context: ./src/backend
+  #     dockerfile: Dockerfile.backend
+  #   image: trade-defense-backend:0.1.0
+  #   container_name: trade-defense-backend
+  #   environment:
+  #     - AI_BASEURL=http://host.docker.internal:8000
+  #     - SERVER_PORT=8080
+  #   ports:
+  #     - "8080:8080"
+
 
