@@ -1,0 +1,17 @@
+tnved_product_mapping:
+  '8428': 'elevators'
+  '842810': 'elevators'
+  '3303': 'perfumery'
+  '330300': 'perfumery'
+  '8472': 'atms'
+  '847230': 'atms'
+
+product_names:
+  elevators: 'Лифты'
+  perfumery: 'Парфюмерия'
+  atms: 'Банкоматы'
+
+product_tnved_prefixes:
+  elevators: '8428'
+  perfumery: '3303'
+  atms: '8472'
