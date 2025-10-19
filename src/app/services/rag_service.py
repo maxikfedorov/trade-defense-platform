@@ -18,7 +18,6 @@ class LocalLLMRAGProcessor:
         self.collection_name = settings.QDRANT_COLLECTION
     
     def search_rag(self, query, top_k=5):
-        """Поиск релевантных документов (изменен top_k на 5)"""
         query_embedding = self.embedding_model.encode(
             [query], 
             normalize_embeddings=True, 
@@ -32,7 +31,6 @@ class LocalLLMRAGProcessor:
         return results
     
     def generate_search_query(self, algorithm_result):
-        """Генерирует ОДИН релевантный поисковый запрос"""
         prompt = RAGPrompts.format_search_query(algorithm_result)
         
         response = self.llm_client.chat.completions.create(
@@ -58,7 +56,6 @@ class LocalLLMRAGProcessor:
         return query
     
     def collect_rag_context(self, query, top_k=5):
-        """Собирает топ-5 документов по одному запросу"""
         results = self.search_rag(query, top_k=top_k)
         
         chunks = []
@@ -74,7 +71,6 @@ class LocalLLMRAGProcessor:
         return chunks
     
     def build_final_prompt(self, algorithm_result, rag_chunks, user_prompt=None):
-        """Формирует финальный промпт с контекстом"""
         context_parts = []
         
         # Блок 1: Метаданные товара
@@ -121,7 +117,6 @@ class LocalLLMRAGProcessor:
         return f"{full_context}\n\n{'='*60}\n\n{prompt_text}"
     
     def generate_explanation(self, prompt):
-        """Генерирует финальное объяснение"""
         response = self.llm_client.chat.completions.create(
             model=settings.LLM_MODEL_NAME,
             messages=[
@@ -134,7 +129,6 @@ class LocalLLMRAGProcessor:
         return response.choices[0].message.content
     
     def process(self, algorithm_result, user_prompt=None):
-        """Основной процесс обработки"""
         # 1. Генерируем ОДИН поисковый запрос
         search_query = self.generate_search_query(algorithm_result)
         
@@ -166,7 +160,6 @@ class LocalLLMRAGProcessor:
 
 
 def full_pipeline(tnved_input, user_prompt=None):
-    """Полный пайплайн обработки"""
     algorithm_result = main_algorithm(tnved_input)
     processor = LocalLLMRAGProcessor()
     final_output = processor.process(algorithm_result, user_prompt)

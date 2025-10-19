@@ -1,6 +1,8 @@
+# uvicorn app.main:app --reload --app-dir src
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware  # <- ДОБАВИТЬ
+from fastapi.middleware.cors import CORSMiddleware
 from app.routers import analysis
 from app.core.config import settings
 import logging

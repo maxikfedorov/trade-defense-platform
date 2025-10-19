@@ -51,7 +51,6 @@ class Metadata(BaseModel):
     current_tariff: Optional[Union[float, str]] = None
 
 
-# НОВЫЕ МОДЕЛИ ДЛЯ ДАШБОРДА
 class ImportDynamicsItem(BaseModel):
     year: int
     value_mln_usd: float
@@ -85,14 +84,13 @@ class DashboardData(BaseModel):
     top5_contract_prices: List[Top5PriceItem]
 
 
-# ОБНОВЛЕННАЯ СХЕМА ОТВЕТА
 class TariffAnalysisResponse(BaseModel):
     metadata: Metadata
     product_info: ProductInfo
     metrics: Metrics
     tariff_measures: Measures
     nontariff_measures: Measures
-    dashboard_data: DashboardData  # ДОБАВЛЕНО!
+    dashboard_data: DashboardData 
 
 
 class SourceInfo(BaseModel):

@@ -85,7 +85,7 @@ export default function AboutModal({ isOpen, onClose }) {
                     <Tag color="blue" icon={<ApiOutlined />}>Frontend</Tag>
                   </div>
                   <Text style={{ fontSize: 13, lineHeight: 1.6 }}>
-                    React 18, Vite, Ant Design 5, Node.js 22.18.0
+                    React 19, Vite, Ant Design 5, Node.js 22.18.0
                   </Text>
                 </div>
 
